@@ -1,0 +1,5 @@
+{
+  "name": "TodayJsonVIP",
+  "description": "An AI-powered tool to convert Vietnamese video scripts into a structured JSON format for the VEO 3 video generation engine, following a comprehensive set of rules for content integrity, scene segmentation, and visual consistency.",
+  "requestFramePermissions": []
+}
