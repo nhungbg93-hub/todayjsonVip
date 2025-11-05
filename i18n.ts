@@ -85,8 +85,10 @@ export const translations = {
 
     // Frame Layouts
     'standard': 'Standard Layout (1/3 Doctor)',
+    'illustration_focus': 'Illustration Focus (Vertical Inset)',
     'split_50_50': 'Split Screen (50/50)',
     'full_overlay': 'Full Frame Doctor (with Overlay)',
+    'black_background_split': 'Black Background Split',
   },
   vi: {
     // Header
@@ -174,8 +176,10 @@ export const translations = {
     
     // Frame Layouts
     'standard': 'Bố cục Tiêu chuẩn (1/3 Bác sĩ)',
+    'illustration_focus': 'Tập trung Minh họa (Khung dọc)',
     'split_50_50': 'Chia đôi màn hình (50/50)',
     'full_overlay': 'Bác sĩ toàn khung (Minh họa phủ lên)',
+    'black_background_split': 'Phông Đen Chia Đôi',
   }
 };
 

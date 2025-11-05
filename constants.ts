@@ -101,6 +101,12 @@ export const FRAME_LAYOUTS = [
         layout_9_16: "The doctor, CHAR_1, is framed on the top third of the screen, speaking to the camera against BACKGROUND_1. The bottom two-thirds of the screen displays an illustrative visual:"
     },
     {
+        id: 'illustration_focus',
+        name: 'Illustration Focus (Vertical Inset)',
+        layout_16_9: "The doctor, CHAR_1, is framed in a vertical inset on the far left of the screen against BACKGROUND_1, occupying about 25% of the screen width. The main illustrative visual fills the remaining 75% of the screen:",
+        layout_9_16: "The doctor, CHAR_1, is framed in a small inset box at the top left of the screen against BACKGROUND_1, occupying a small portion of the screen area. The main illustrative visual fills the majority of the screen below and to the right of the inset:"
+    },
+    {
         id: 'split_50_50',
         name: 'Split Screen (50/50)',
         layout_16_9: "Split screen. The doctor, CHAR_1, is framed on the left half of the screen, speaking to the camera against BACKGROUND_1. The right half of the screen displays an illustrative visual:",
@@ -111,6 +117,12 @@ export const FRAME_LAYOUTS = [
         name: 'Full Frame Doctor (with Overlay)',
         layout_16_9: "Full screen shot of the doctor, CHAR_1, speaking to the camera against BACKGROUND_1. An illustrative visual is overlaid on the scene:",
         layout_9_16: "Full screen shot of the doctor, CHAR_1, speaking to the camera against BACKGROUND_1. An illustrative visual is overlaid on the scene:"
+    },
+    {
+        id: 'black_background_split',
+        name: 'Black Background Split',
+        layout_16_9: "Split screen against a solid black background. The doctor, CHAR_1, is on the left half of the screen, speaking to the camera. The right half displays textual or illustrative content:",
+        layout_9_16: "Split screen against a solid black background. The doctor, CHAR_1, is on the top half of the screen, speaking to the camera. The bottom half displays textual or illustrative content:"
     }
 ] as const;
 
