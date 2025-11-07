@@ -10,18 +10,23 @@ import { useLanguage } from './contexts/LanguageContext';
 
 const APP_STATE_KEY = 'veo-app-state';
 
+interface CharacterImage {
+    data: string;
+    mimeType: string;
+}
+
 const getInitialState = () => {
     try {
         const savedState = localStorage.getItem(APP_STATE_KEY);
         if (savedState) {
             const parsedState = JSON.parse(savedState);
-            // Ensure all keys exist to prevent errors if the stored object is outdated
             const defaultTemplate = SCENARIO_TEMPLATES[0];
             return {
                 apiKeys: parsedState.apiKeys ?? (process.env.API_KEY || ''),
                 selectedTemplate: parsedState.selectedTemplate ?? defaultTemplate.id,
                 characterDescription: parsedState.characterDescription ?? defaultTemplate.character,
                 backgroundDescription: parsedState.backgroundDescription ?? defaultTemplate.background,
+                characterImage: parsedState.characterImage ?? null,
                 inputText: parsedState.inputText ?? defaultTemplate.script,
                 voiceInstructions: parsedState.voiceInstructions ?? defaultTemplate.voice,
                 aspectRatio: parsedState.aspectRatio ?? '16:9',
@@ -36,13 +41,13 @@ const getInitialState = () => {
     } catch (error) {
         console.error("Failed to parse saved state from localStorage", error);
     }
-    // Return default state if nothing is saved or parsing fails
     const defaultTemplate = SCENARIO_TEMPLATES[0];
     return {
         apiKeys: process.env.API_KEY || '',
         selectedTemplate: defaultTemplate.id,
         characterDescription: defaultTemplate.character,
         backgroundDescription: defaultTemplate.background,
+        characterImage: null as CharacterImage | null,
         inputText: defaultTemplate.script,
         voiceInstructions: defaultTemplate.voice,
         aspectRatio: '16:9' as '16:9' | '9:16',
@@ -65,6 +70,7 @@ const App: React.FC = () => {
     const [selectedTemplate, setSelectedTemplate] = useState(initialState.selectedTemplate);
     const [characterDescription, setCharacterDescription] = useState(initialState.characterDescription);
     const [backgroundDescription, setBackgroundDescription] = useState(initialState.backgroundDescription);
+    const [characterImage, setCharacterImage] = useState<CharacterImage | null>(initialState.characterImage);
     const [inputText, setInputText] = useState(initialState.inputText);
     const [voiceInstructions, setVoiceInstructions] = useState(initialState.voiceInstructions);
     const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>(initialState.aspectRatio);
@@ -88,6 +94,7 @@ const App: React.FC = () => {
             selectedTemplate,
             characterDescription,
             backgroundDescription,
+            characterImage,
             inputText,
             voiceInstructions,
             aspectRatio,
@@ -101,7 +108,7 @@ const App: React.FC = () => {
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
     }, [
         apiKeys, selectedTemplate, characterDescription, backgroundDescription,
-        inputText, voiceInstructions, aspectRatio, sourceLanguage, language,
+        characterImage, inputText, voiceInstructions, aspectRatio, sourceLanguage, language,
         speaker, visualStyle, promptStyle, frameLayout
     ]);
 
@@ -113,8 +120,35 @@ const App: React.FC = () => {
             setBackgroundDescription(template.background);
             setVoiceInstructions(template.voice);
             setInputText(template.script);
+            setCharacterImage(null); // Reset image when template changes
         }
     };
+    
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                setNotification({ message: 'Invalid file type. Please upload a JPG, PNG, or WEBP.', type: 'error' });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                const mimeType = result.match(/:(.*?);/)?.[1];
+                if (!mimeType) {
+                    setNotification({ message: 'Could not determine image type.', type: 'error' });
+                    return;
+                }
+                const base64String = result.split(',')[1];
+                setCharacterImage({ data: base64String, mimeType: mimeType });
+            };
+            reader.onerror = () => {
+                setNotification({ message: 'Failed to read the image file.', type: 'error' });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
 
     const handleGenerate = useCallback(async () => {
         setIsLoading(true);
@@ -128,6 +162,7 @@ const App: React.FC = () => {
                 apiKeys,
                 characterDescription,
                 backgroundDescription,
+                characterImage,
                 inputText,
                 voiceInstructions,
                 aspectRatio,
@@ -148,7 +183,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [apiKeys, characterDescription, backgroundDescription, inputText, voiceInstructions, aspectRatio, sourceLanguage, language, speaker, visualStyle, promptStyle, frameLayout, t]);
+    }, [apiKeys, characterDescription, backgroundDescription, characterImage, inputText, voiceInstructions, aspectRatio, sourceLanguage, language, speaker, visualStyle, promptStyle, frameLayout, t]);
 
     const FilmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
@@ -287,6 +322,38 @@ const App: React.FC = () => {
                       </div>
                     </Panel>
                     <Panel title={t('panelContentInput')}>
+                      <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-400 mb-2">{t('contentCharacterImage')}</label>
+                          {characterImage ? (
+                              <div className="relative group">
+                                  <img src={`data:${characterImage.mimeType};base64,${characterImage.data}`} alt="Character preview" className="rounded-md w-full object-cover" />
+                                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                          onClick={() => setCharacterImage(null)}
+                                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
+                                      >
+                                          {t('removeImage')}
+                                      </button>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md">
+                                  <div className="space-y-1 text-center">
+                                      <svg className="mx-auto h-12 w-12 text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                      <div className="flex text-sm text-gray-400">
+                                          <label htmlFor="file-upload" className="relative cursor-pointer bg-gray-800 rounded-md font-medium text-cyan-400 hover:text-cyan-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-900 focus-within:ring-cyan-500">
+                                              <span>{t('uploadFile')}</span>
+                                              <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/png, image/jpeg, image/webp" onChange={handleImageUpload} />
+                                          </label>
+                                          <p className="pl-1">{t('dragAndDrop')}</p>
+                                      </div>
+                                      <p className="text-xs text-gray-500">{t('imageFileType')}</p>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
                       <TextAreaInput
                           label={t('contentCharacter')}
                           value={characterDescription}

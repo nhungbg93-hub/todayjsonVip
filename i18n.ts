@@ -33,12 +33,17 @@ export const translations = {
     template_expert: "Expert",
 
     // Content Input Panel
-    contentCharacter: "Character Description",
+    contentCharacter: "Character Description (Used for non-visuals if image is uploaded)",
     contentCharacterPlaceholder: "Describe your character...",
     contentBackground: "Background Description",
     contentBackgroundPlaceholder: "Describe the background scene...",
     contentVoice: "Voice-over Delivery Instructions",
     contentVoicePlaceholder: "Describe the vocal tone, pace, and emphasis...",
+    contentCharacterImage: "Character Reference Image (Primary Source)",
+    uploadFile: "Upload a file",
+    dragAndDrop: "or drag and drop",
+    imageFileType: "PNG, JPG, WEBP",
+    removeImage: "Remove Image",
 
     // Script Panel
     scriptLabel: "Enter your script below",
@@ -163,12 +168,17 @@ export const translations = {
     template_expert: "Chuyên gia",
 
     // Content Input Panel
-    contentCharacter: "Mô tả nhân vật",
+    contentCharacter: "Mô tả nhân vật (Dùng cho thông tin phi trực quan nếu có ảnh)",
     contentCharacterPlaceholder: "Mô tả nhân vật của bạn...",
     contentBackground: "Mô tả bối cảnh",
     contentBackgroundPlaceholder: "Mô tả bối cảnh, khung cảnh...",
     contentVoice: "Hướng dẫn giọng đọc",
     contentVoicePlaceholder: "Mô tả tông giọng, nhịp độ, và điểm nhấn...",
+    contentCharacterImage: "Ảnh tham chiếu nhân vật (Nguồn chính)",
+    uploadFile: "Tải tệp lên",
+    dragAndDrop: "hoặc kéo và thả",
+    imageFileType: "PNG, JPG, WEBP",
+    removeImage: "Xóa ảnh",
 
     // Script Panel
     scriptLabel: "Nhập kịch bản của bạn dưới đây",

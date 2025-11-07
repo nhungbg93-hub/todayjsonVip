@@ -9,6 +9,11 @@ import {
     CHARACTER_CONSISTENCY_PROMPT_BLOCK
 } from '../constants';
 
+interface CharacterImage {
+    data: string;
+    mimeType: string;
+}
+
 const countWords = (text: string): number => {
   if (!text) return 0;
   return text.trim().split(/\s+/).length;
@@ -18,7 +23,8 @@ const generateSetupJson = async (
     apiKeys: string[],
     characterDescription: string,
     backgroundDescription: string,
-    visualStyle: VisualStyleId
+    visualStyle: VisualStyleId,
+    characterImage: CharacterImage | null
 ): Promise<Setup> => {
     const schema = {
         type: Type.OBJECT,
@@ -72,32 +78,70 @@ const generateSetupJson = async (
         required: ["character_lock", "background_lock"]
     };
 
-    const prompt = `
-      You are an AI assistant that populates a JSON object from separate character and background descriptions.
-      **CRITICAL RULE**: Process the Character Description and Background Description as two completely independent tasks. The background details MUST NOT influence the character's appearance, clothing, or properties. The character's details MUST NOT influence the background.
+    const generationFunc = (ai: GoogleGenAI) => {
+        let prompt: string;
+        let contents: any;
 
-      Follow these steps:
-      1. Read ONLY the "Character Description" and fill out all fields for the character with ID "CHAR_1".
-      2. Read ONLY the "Background Description" and fill out all fields for the background with ID "BACKGROUND_1".
-      3. Populate all fields as detailed as possible. If a detail isn't provided in its specific section, make a reasonable, professional assumption that fits that section's context ONLY.
+        if (characterImage) {
+            prompt = `
+              You are an AI assistant that populates a JSON object from a reference image, a character description, and a background description.
+              **CRITICAL RULE #1: The character's appearance MUST be an EXACT replica of the provided reference image.** The image is the absolute source of truth for all visual attributes (face shape, skin color, hair style/color, clothing, accessories, etc.).
+              **CRITICAL RULE #2: Use the 'Character Description' text ONLY for non-visual attributes** (like name, age, gender, species, voice personality) or to clarify details that are ambiguous or not visible in the image. DO NOT let the text override the visual data from the image.
+              **CRITICAL RULE #3**: Process the Background Description independently. It must not influence the character.
 
-      --- CHARACTER DESCRIPTION ---
-      "${characterDescription}"
-      --- END CHARACTER DESCRIPTION ---
+              Follow these steps:
+              1. Analyze the provided reference image to determine the character's visual appearance.
+              2. Read the "Character Description" text for non-visual information.
+              3. Fill out all fields for the character with ID "CHAR_1" based PRIMARILY on the image, supplemented by the text for non-visuals.
+              4. Read ONLY the "Background Description" and fill out all fields for the background with ID "BACKGROUND_1".
 
-      --- BACKGROUND DESCRIPTION ---
-      "${backgroundDescription}"
-      --- END BACKGROUND DESCRIPTION ---
-    `;
-    
-    const generationFunc = (ai: GoogleGenAI) => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: schema
+              --- CHARACTER DESCRIPTION (for non-visual details) ---
+              "${characterDescription}"
+              --- END CHARACTER DESCRIPTION ---
+
+              --- BACKGROUND DESCRIPTION ---
+              "${backgroundDescription}"
+              --- END BACKGROUND DESCRIPTION ---
+            `;
+            const imagePart = {
+                inlineData: {
+                    mimeType: characterImage.mimeType,
+                    data: characterImage.data,
+                },
+            };
+            const textPart = { text: prompt };
+            contents = { parts: [textPart, imagePart] };
+
+        } else {
+            prompt = `
+              You are an AI assistant that populates a JSON object from separate character and background descriptions.
+              **CRITICAL RULE**: Process the Character Description and Background Description as two completely independent tasks. The background details MUST NOT influence the character's appearance, clothing, or properties. The character's details MUST NOT influence the background.
+
+              Follow these steps:
+              1. Read ONLY the "Character Description" and fill out all fields for the character with ID "CHAR_1".
+              2. Read ONLY the "Background Description" and fill out all fields for the background with ID "BACKGROUND_1".
+              3. Populate all fields as detailed as possible. If a detail isn't provided in its specific section, make a reasonable, professional assumption that fits that section's context ONLY.
+
+              --- CHARACTER DESCRIPTION ---
+              "${characterDescription}"
+              --- END CHARACTER DESCRIPTION ---
+
+              --- BACKGROUND DESCRIPTION ---
+              "${backgroundDescription}"
+              --- END BACKGROUND DESCRIPTION ---
+            `;
+            contents = prompt;
         }
-    });
+    
+        return ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: contents,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema
+            }
+        });
+    };
 
     const response = await generateWithApiKeyRotation(apiKeys, generationFunc);
     const jsonResponse = JSON.parse(response.text);
@@ -201,6 +245,7 @@ export const convertScript = async (
     apiKeysString: string,
     characterDescription: string,
     backgroundDescription: string,
+    characterImage: CharacterImage | null,
     inputText: string,
     voiceInstructions: string,
     aspectRatio: '16:9' | '9:16',
@@ -219,7 +264,7 @@ export const convertScript = async (
     const apiKeys = apiKeysString.trim().split(/\s+/);
     
     const [setupData, scenePlans] = await Promise.all([
-        generateSetupJson(apiKeys, characterDescription, backgroundDescription, visualStyle),
+        generateSetupJson(apiKeys, characterDescription, backgroundDescription, visualStyle, characterImage),
         generateScenePlans(apiKeys, inputText, sourceLanguage, language, promptStyle, visualStyle)
     ]);
 
