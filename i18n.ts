@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     // Header
@@ -7,7 +8,7 @@ export const translations = {
     // Panels
     panelConfig: "Configuration",
     panelContentInput: "Content Input",
-    panelScript: "Vietnamese Script",
+    panelScript: "Source Script",
     panelStats: "Statistics",
     panelSetupJson: "Setup JSON",
     panelScenesJsonl: "Scenes JSONL",
@@ -15,6 +16,7 @@ export const translations = {
     // Config Panel
     configApiKeys: "Gemini API Keys (space-separated)",
     configApiKeysPlaceholder: "Enter one or more API keys",
+    configSourceLanguage: "Source Language",
     configLanguage: "Output Language",
     configSpeaker: "Speaker Voice",
     configVisualStyle: "Visual Style",
@@ -23,6 +25,12 @@ export const translations = {
     configAspectRatio: "Aspect Ratio",
     aspectRatioLandscape: "16:9 (Landscape)",
     aspectRatioPortrait: "9:16 (Portrait)",
+    configInputTemplate: "Input Template",
+
+    // Template Names
+    template_doctor: "Doctor",
+    template_teacher: "Teacher",
+    template_expert: "Expert",
 
     // Content Input Panel
     contentCharacter: "Character Description",
@@ -34,7 +42,7 @@ export const translations = {
 
     // Script Panel
     scriptLabel: "Enter your script below",
-    scriptPlaceholder: "Paste your Vietnamese script here...",
+    scriptPlaceholder: "Paste your source script here...",
 
     // Button
     buttonGenerate: "Generate JSON",
@@ -79,16 +87,48 @@ export const translations = {
     'emotional': 'Emotional & Introspective',
     'documentary': 'Documentary & Factual',
     'minimalist': 'Minimalist & Clean',
+    'vibrant_colorful': 'Vibrant & Colorful',
+    'mystery_intrigue': 'Mystery & Intrigue',
     'illustration_2d': '2D Illustration',
     'illustration_3d': '3D Illustration',
     'illustration_diverse': 'Diverse Illustration Styles',
+    'storytelling': 'Storytelling & Narrative',
+    'contrast_comparison': 'Contrast & Comparison',
+    'symbolic_metaphor': 'Symbolic & Metaphorical',
+    'surprise_unexpected': 'Surprise & Unexpected',
+    'social_relatable': 'Social & Relatable',
+    'humor_playful': 'Humorous & Playful',
+    'epic_grand': 'Epic & Grand Scale',
+    'futuristic_tech': 'Futuristic & Tech-Forward',
+    'natural_organic': 'Natural & Organic',
+    'retro_vintage': 'Retro & Vintage',
+    'action_packed': 'Action-Packed & Intense',
+    'educational_clear': 'Educational & Crystal Clear',
+    'warm_friendly': 'Warm & Friendly',
+    'luxury_premium': 'Luxury & Premium',
 
     // Frame Layouts
     'standard': 'Standard Layout (1/3 Doctor)',
     'illustration_focus': 'Illustration Focus (Vertical Inset)',
     'split_50_50': 'Split Screen (50/50)',
     'full_overlay': 'Full Frame Doctor (with Overlay)',
+    'background_integration': 'Background Integration (News Style)',
+    'illustration_takeover': 'Illustration Takeover (Voice-over)',
+    'pip_dynamic': 'Picture-in-Picture (Dynamic)',
+    'visual_emphasis': 'Visual Emphasis (Quick Punch-in)',
     'black_background_split': 'Black Background Split',
+    'pip_corner': 'Picture-in-Picture (Corner)',
+    'floating_frame': 'Floating Frame (3D Depth)',
+    'cinematic_letterbox': 'Cinematic Letterbox',
+    'minimal_corner': 'Minimalist Corner',
+    'diagonal_split': 'Diagonal Split',
+    'triple_panel': 'Triple Panel',
+    'l_shape': 'L-Shape Border',
+    'spotlight_circle': 'Spotlight Circle',
+    'minhhoa_tren': 'Illustration Above (60/40 Split)',
+    'minhhoa_sau': 'Illustration Behind (Centered Expert)',
+    'minhhoa_3_4': 'Illustration 3/4 (Vertical Bar)',
+    'parallel_mix': 'Parallel Mix (70/30 Split)',
   },
   vi: {
     // Header
@@ -98,7 +138,7 @@ export const translations = {
     // Panels
     panelConfig: "Cấu hình",
     panelContentInput: "Nội dung đầu vào",
-    panelScript: "Kịch bản tiếng Việt",
+    panelScript: "Kịch bản Nguồn",
     panelStats: "Thống kê",
     panelSetupJson: "Setup JSON",
     panelScenesJsonl: "Scenes JSONL",
@@ -106,7 +146,8 @@ export const translations = {
     // Config Panel
     configApiKeys: "Gemini API Keys (cách nhau bằng dấu cách)",
     configApiKeysPlaceholder: "Nhập một hoặc nhiều API key",
-    configLanguage: "Ngôn ngữ đầu ra",
+    configSourceLanguage: "Ngôn ngữ Nguồn",
+    configLanguage: "Ngôn ngữ Đầu ra",
     configSpeaker: "Giọng nói",
     configVisualStyle: "Phong cách hình ảnh",
     configPromptStyle: "Phong cách Prompt",
@@ -114,6 +155,12 @@ export const translations = {
     configAspectRatio: "Tỷ lệ khung hình",
     aspectRatioLandscape: "16:9 (Ngang)",
     aspectRatioPortrait: "9:16 (Dọc)",
+    configInputTemplate: "Mẫu Đầu Vào",
+
+    // Template Names
+    template_doctor: "Bác sĩ",
+    template_teacher: "Thầy giáo",
+    template_expert: "Chuyên gia",
 
     // Content Input Panel
     contentCharacter: "Mô tả nhân vật",
@@ -125,7 +172,7 @@ export const translations = {
 
     // Script Panel
     scriptLabel: "Nhập kịch bản của bạn dưới đây",
-    scriptPlaceholder: "Dán kịch bản tiếng Việt của bạn vào đây...",
+    scriptPlaceholder: "Dán kịch bản nguồn của bạn vào đây...",
 
     // Button
     buttonGenerate: "Tạo JSON",
@@ -170,16 +217,48 @@ export const translations = {
     'emotional': 'Cảm xúc & Nội tâm',
     'documentary': 'Tài liệu & Thực tế',
     'minimalist': 'Tối giản & Rõ ràng',
+    'vibrant_colorful': 'Sống động & Đầy màu sắc',
+    'mystery_intrigue': 'Bí ẩn & Hấp dẫn',
     'illustration_2d': 'Minh hoạ 2D',
     'illustration_3d': 'Minh hoạ 3D',
     'illustration_diverse': 'Minh hoạ đa dạng',
+    'storytelling': 'Kể chuyện & Tường thuật',
+    'contrast_comparison': 'Tương phản & So sánh',
+    'symbolic_metaphor': 'Biểu tượng & Ẩn dụ',
+    'surprise_unexpected': 'Bất ngờ & Khó đoán',
+    'social_relatable': 'Gần gũi & Đời thường',
+    'humor_playful': 'Hài hước & Vui nhộn',
+    'epic_grand': 'Sử thi & Vĩ mô',
+    'futuristic_tech': 'Tương lai & Công nghệ',
+    'natural_organic': 'Tự nhiên & Mộc mạc',
+    'retro_vintage': 'Hoài cổ & Cổ điển',
+    'action_packed': 'Hành động & Kịch tính',
+    'educational_clear': 'Giáo dục & Rõ ràng',
+    'warm_friendly': 'Ấm áp & Thân thiện',
+    'luxury_premium': 'Sang trọng & Cao cấp',
     
     // Frame Layouts
     'standard': 'Bố cục Tiêu chuẩn (1/3 Bác sĩ)',
     'illustration_focus': 'Tập trung Minh họa (Khung dọc)',
     'split_50_50': 'Chia đôi màn hình (50/50)',
     'full_overlay': 'Bác sĩ toàn khung (Minh họa phủ lên)',
+    'background_integration': 'Tích hợp vào nền (Kiểu tin tức)',
+    'illustration_takeover': 'Minh họa toàn màn hình (Thuyết minh)',
+    'pip_dynamic': 'Hình trong hình (Động)',
+    'visual_emphasis': 'Nhấn mạnh hình ảnh (Chèn nhanh)',
     'black_background_split': 'Phông Đen Chia Đôi',
+    'pip_corner': 'Hình trong hình (Góc)',
+    'floating_frame': 'Khung Nổi (Hiệu ứng 3D)',
+    'cinematic_letterbox': 'Hộp thư Điện ảnh',
+    'minimal_corner': 'Góc Tối giản',
+    'diagonal_split': 'Chia chéo Màn hình',
+    'triple_panel': 'Bảng Ba Khung',
+    'l_shape': 'Viền Chữ L',
+    'spotlight_circle': 'Vòng tròn Tâm điểm',
+    'minhhoa_tren': 'Minh họa Phía trên (60/40)',
+    'minhhoa_sau': 'Minh họa Phía sau (Chuyên gia ở giữa)',
+    'minhhoa_3_4': 'Minh họa 3/4 (Thanh dọc)',
+    'parallel_mix': 'Nội dung Song hành (70/30)',
   }
 };
 

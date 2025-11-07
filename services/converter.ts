@@ -5,7 +5,8 @@ import {
 } from '../types';
 import { 
     POSES, ACTION_FLOWS, FOLEY_BASE, NEGATIVE_PROMPT, 
-    LIP_SYNC_NOTE_TEMPLATE, SUPPORTED_LANGUAGES, PROMPT_STYLES, FRAME_LAYOUTS
+    LIP_SYNC_NOTE_TEMPLATE, SUPPORTED_LANGUAGES, PROMPT_STYLES, FRAME_LAYOUTS,
+    CHARACTER_CONSISTENCY_PROMPT_BLOCK
 } from '../constants';
 
 const countWords = (text: string): number => {
@@ -72,13 +73,21 @@ const generateSetupJson = async (
     };
 
     const prompt = `
-      Based on the following descriptions, generate a JSON object containing character and background details.
-      - The character ID MUST be "CHAR_1".
-      - The background ID MUST be "BACKGROUND_1".
-      - Populate all fields as detailed as possible based on the descriptions. If a detail isn't provided, make a reasonable, professional assumption.
+      You are an AI assistant that populates a JSON object from separate character and background descriptions.
+      **CRITICAL RULE**: Process the Character Description and Background Description as two completely independent tasks. The background details MUST NOT influence the character's appearance, clothing, or properties. The character's details MUST NOT influence the background.
 
-      Character Description: "${characterDescription}"
-      Background Description: "${backgroundDescription}"
+      Follow these steps:
+      1. Read ONLY the "Character Description" and fill out all fields for the character with ID "CHAR_1".
+      2. Read ONLY the "Background Description" and fill out all fields for the background with ID "BACKGROUND_1".
+      3. Populate all fields as detailed as possible. If a detail isn't provided in its specific section, make a reasonable, professional assumption that fits that section's context ONLY.
+
+      --- CHARACTER DESCRIPTION ---
+      "${characterDescription}"
+      --- END CHARACTER DESCRIPTION ---
+
+      --- BACKGROUND DESCRIPTION ---
+      "${backgroundDescription}"
+      --- END BACKGROUND DESCRIPTION ---
     `;
     
     const generationFunc = (ai: GoogleGenAI) => ai.models.generateContent({
@@ -104,7 +113,7 @@ const generateSetupJson = async (
     };
 };
 
-const generateScenePlans = async (apiKeys: string[], inputText: string, language: LanguageCode, promptStyle: PromptStyleId): Promise<ScenePlan[]> => {
+const generateScenePlans = async (apiKeys: string[], inputText: string, sourceLanguage: LanguageCode, language: LanguageCode, promptStyle: PromptStyleId, visualStyle: VisualStyleId): Promise<ScenePlan[]> => {
     const schema = {
         type: Type.ARRAY,
         items: {
@@ -117,36 +126,74 @@ const generateScenePlans = async (apiKeys: string[], inputText: string, language
         }
     };
 
-    const targetLanguageName = SUPPORTED_LANGUAGES.find(l => l.code === language)?.name || 'the target language';
-    const styleDescription = PROMPT_STYLES.find(s => s.id === promptStyle)?.description || 'Visually compelling, cinematic, and often metaphorical.';
-
-    const prompt = `
-      You are an AI script processor for a video generation tool. Follow these rules with absolute precision:
-      1.  **VERBATIM TRANSLATION**: First, translate the following Vietnamese script into ${targetLanguageName} (${language}). The translation MUST be verbatim (word-for-word) and 100% faithful to the source. DO NOT summarize, interpret, or change the meaning in any way.
-      2.  **STRICT SEGMENTATION**: After translating, segment the full translated text into scenes. Each scene's text ('scene_text') MUST contain between 10 and 15 words. This is a strict, non-negotiable rule.
-      3.  **LOGICAL SPLITTING**: When segmenting, you MUST split the text at logical and grammatical breakpoints, such as after a comma or at the end of a clause. This ensures each scene sounds natural and complete on its own. Avoid awkward cuts in the middle of a phrase.
-      4.  **ILLUSTRATION PROMPT GENERATION**: For EACH segmented scene, you MUST create a corresponding 'illustration_prompt'. The style of this prompt MUST be: **${styleDescription}**. The prompt must NOT describe the speaker and must be in English.
-      5.  **OUTPUT FORMAT**: The final output must be a single JSON array of objects, where each object represents a scene and contains 'scene_text' and 'illustration_prompt'.
-
-      Vietnamese Script: "${inputText}"
-    `;
-
-    const generationFunc = (ai: GoogleGenAI) => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: schema
-        }
-    });
-
-    const response = await generateWithApiKeyRotation(apiKeys, generationFunc);
-    const result = JSON.parse(response.text);
-
-    if (!Array.isArray(result) || result.length === 0) {
-        throw new Error("AI did not return a valid scene plan array.");
+    // 1. Split the input text into manageable chunks (e.g., by paragraphs).
+    const chunks = inputText.split(/\n\s*\n/).filter(chunk => chunk.trim() !== '');
+    if (chunks.length === 0) {
+        throw new Error("Input script is empty or contains only whitespace.");
     }
-    return result;
+
+    // 2. Create a processing function for a single chunk.
+    const processChunk = async (chunk: string): Promise<ScenePlan[]> => {
+        const sourceLanguageName = SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name || 'the source language';
+        const targetLanguageName = SUPPORTED_LANGUAGES.find(l => l.code === language)?.name || 'the target language';
+        const styleDescription = PROMPT_STYLES.find(s => s.id === promptStyle)?.description || 'Visually compelling, cinematic, and often metaphorical.';
+        const needsTranslation = sourceLanguage !== language;
+        const visualStyleName = visualStyle.replace(/_/g, ' ');
+
+        const instructions = [
+            needsTranslation && `**VERBATIM TRANSLATION**: First, translate the following ${sourceLanguageName} text chunk into ${targetLanguageName} (${language}). The translation MUST be verbatim (word-for-word) and 100% faithful to the source. DO NOT summarize, interpret, or change the meaning.`,
+            `**STRICT SEGMENTATION**: After any necessary translation, segment the full text into scenes. Each scene's text ('scene_text') MUST contain between 10 and 15 words. This is a strict, non-negotiable rule.`,
+            `**LOGICAL SPLITTING**: When segmenting, you MUST split the text at logical and grammatical breakpoints, such as after a comma or at the end of a clause. This ensures each scene sounds natural and complete on its own. Avoid awkward cuts.`,
+            `**ILLUSTRATION PROMPT GENERATION**: For EACH segmented scene, you MUST create a corresponding 'illustration_prompt'. The style of this prompt MUST be: **${styleDescription}**. The prompt must NOT describe the speaker and must be in English.`,
+            `**VISUAL STYLE ADHERENCE**: Critically, the 'illustration_prompt' MUST be described in a way that is fully compatible with the video's master visual style, which is **"${visualStyleName}"**. For example, if the master style is "Anime Japan", the illustration prompt should describe an anime-style scene, not a photorealistic one.`,
+            `**OUTPUT FORMAT**: The final output must be a single JSON array of objects, where each object represents a scene and contains 'scene_text' and 'illustration_prompt'.`
+        ].filter(Boolean) as string[];
+
+        const numberedInstructions = instructions.map((inst, index) => `${index + 1}. ${inst}`).join('\n');
+
+        const prompt = `
+          You are an AI script processor for a video generation tool. Follow these rules with absolute precision for the provided text chunk:
+          ${numberedInstructions}
+
+          Text Chunk to process: "${chunk}"
+        `;
+
+        const generationFunc = (ai: GoogleGenAI) => ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema
+            }
+        });
+        
+        try {
+            const response = await generateWithApiKeyRotation(apiKeys, generationFunc);
+            const result = JSON.parse(response.text);
+
+            if (!Array.isArray(result)) {
+                console.warn("AI did not return a valid array for chunk:", chunk, "Received:", result);
+                return []; // Return empty array for failed chunks to avoid breaking the whole process
+            }
+            return result;
+        } catch (error) {
+            console.error(`Failed to process chunk: "${chunk.substring(0, 50)}..."`, error);
+            // Decide if you want to throw or return empty. Returning empty makes it more resilient.
+            return [];
+        }
+    };
+
+    // 3. Process all chunks in parallel.
+    const allScenePlanArrays = await Promise.all(chunks.map(chunk => processChunk(chunk)));
+    
+    // 4. Flatten the array of arrays into a single array.
+    const finalScenePlans = allScenePlanArrays.flat();
+
+    if (finalScenePlans.length === 0) {
+        throw new Error("AI failed to generate any valid scene plans from the provided script. This might be due to an API key issue or an invalid script format.");
+    }
+
+    return finalScenePlans;
 };
 
 
@@ -157,6 +204,7 @@ export const convertScript = async (
     inputText: string,
     voiceInstructions: string,
     aspectRatio: '16:9' | '9:16',
+    sourceLanguage: LanguageCode,
     language: LanguageCode,
     speaker: VeoSpeakerId,
     visualStyle: VisualStyleId,
@@ -172,7 +220,7 @@ export const convertScript = async (
     
     const [setupData, scenePlans] = await Promise.all([
         generateSetupJson(apiKeys, characterDescription, backgroundDescription, visualStyle),
-        generateScenePlans(apiKeys, inputText, language, promptStyle)
+        generateScenePlans(apiKeys, inputText, sourceLanguage, language, promptStyle, visualStyle)
     ]);
 
     const character = setupData.character_lock.CHAR_1;
@@ -203,7 +251,8 @@ export const convertScript = async (
         const actionFlow = ACTION_FLOWS[actionIndex];
         
         const layoutPrompt = aspectRatio === '16:9' ? selectedLayout.layout_16_9 : selectedLayout.layout_9_16;
-        const finalPrompt = `${layoutPrompt} ${plan.illustration_prompt}`;
+        const consistencyBlock = CHARACTER_CONSISTENCY_PROMPT_BLOCK(character.name || "CHAR_1");
+        const finalPrompt = `${consistencyBlock}\n🎬 **SCENE DESCRIPTION**:\n${layoutPrompt} ${plan.illustration_prompt}`;
 
         return {
             scene_id: String(sceneIndex + 1),
