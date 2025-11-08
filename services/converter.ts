@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { generateWithApiKeyRotation } from './geminiService';
 import { 
@@ -6,7 +7,7 @@ import {
 import { 
     POSES, ACTION_FLOWS, FOLEY_BASE, NEGATIVE_PROMPT, 
     LIP_SYNC_NOTE_TEMPLATE, SUPPORTED_LANGUAGES, PROMPT_STYLES, FRAME_LAYOUTS,
-    CHARACTER_CONSISTENCY_PROMPT_BLOCK
+    CHARACTER_CONSISTENCY_PROMPT_BLOCK, VEO_SPEAKERS
 } from '../constants';
 
 interface CharacterImage {
@@ -84,24 +85,37 @@ const generateSetupJson = async (
 
         if (characterImage) {
             prompt = `
-              You are an AI assistant that populates a JSON object from a reference image, a character description, and a background description.
-              **CRITICAL RULE #1: The character's appearance MUST be an EXACT replica of the provided reference image.** The image is the absolute source of truth for all visual attributes (face shape, skin color, hair style/color, clothing, accessories, etc.).
-              **CRITICAL RULE #2: Use the 'Character Description' text ONLY for non-visual attributes** (like name, age, gender, species, voice personality) or to clarify details that are ambiguous or not visible in the image. DO NOT let the text override the visual data from the image.
-              **CRITICAL RULE #3**: Process the Background Description independently. It must not influence the character.
+              You are a meticulous digital modeler creating a JSON description of a character from a reference image. Your work requires forensic-level attention to detail. Any deviation from the reference image is a critical failure.
 
-              Follow these steps:
-              1. Analyze the provided reference image to determine the character's visual appearance.
-              2. Read the "Character Description" text for non-visual information.
-              3. Fill out all fields for the character with ID "CHAR_1" based PRIMARILY on the image, supplemented by the text for non-visuals.
-              4. Read ONLY the "Background Description" and fill out all fields for the background with ID "BACKGROUND_1".
+              **PRIMARY DIRECTIVE: The provided image is the *only* source of truth for all visual attributes. Your task is to perform a detailed visual analysis of the image and translate it into the structured JSON format. The text description is secondary and should only be used for non-visual data.**
 
-              --- CHARACTER DESCRIPTION (for non-visual details) ---
+              **Step-by-Step Analysis & Population Process:**
+
+              1.  **Forensic Image Analysis:**
+                  *   Examine the character in the image from head to toe.
+                  *   Identify face shape, skin tone (be specific), eye color, and any unique features like moles, scars, or smile lines.
+                  *   Analyze the hair: exact color, style (e.g., 'parted on the left', 'wavy texture'), length.
+                  *   Observe the clothing: describe each item with extreme detail (e.g., 'a royal blue V-neck scrub top', 'a pristine white lab coat with notched lapels'). Note every button, collar style, and fabric texture you can infer.
+                  *   Identify all accessories: glasses (style, color), jewelry, badges, stethoscopes. Be precise.
+                  *   Infer body build and posture from the image.
+
+              2.  **JSON Population:**
+                  *   Based **exclusively** on your visual analysis from Step 1, populate every visual field in the \`character_lock.CHAR_1\` object.
+                  *   For fields like \`name\`, \`age\`, \`gender\`, \`species\`, \`voice_personality\`, you may refer to the provided "Character Description" text.
+                  *   **CRITICAL RULE: THE IMAGE ALWAYS WINS.** If the text description contains a visual detail (e.g., "hair color: blonde") that CONTRADICTS the image (e.g., character has brown hair), you MUST ignore the contradictory text and describe what you see in the image.
+
+              3.  **Background Population:**
+                  *   Completely ignore the character and the image. Read ONLY the "Background Description" text and populate the \`background_lock.BACKGROUND_1\` object.
+
+              --- CHARACTER DESCRIPTION (for non-visuals & supplemental info) ---
               "${characterDescription}"
               --- END CHARACTER DESCRIPTION ---
 
-              --- BACKGROUND DESCRIPTION ---
+              --- BACKGROUND DESCRIPTION (independent task) ---
               "${backgroundDescription}"
               --- END BACKGROUND DESCRIPTION ---
+
+              **Final Check:** Before outputting the JSON, re-verify that every visual detail in the \`CHAR_1\` object is a direct, factual description of the character in the image. The goal is a perfect, 1-to-1 digital replication.
             `;
             const imagePart = {
                 inlineData: {
@@ -157,46 +171,62 @@ const generateSetupJson = async (
     };
 };
 
-const generateScenePlans = async (apiKeys: string[], inputText: string, sourceLanguage: LanguageCode, language: LanguageCode, promptStyle: PromptStyleId, visualStyle: VisualStyleId): Promise<ScenePlan[]> => {
+const generateScenePlans = async (
+    apiKeys: string[], 
+    inputText: string, 
+    sourceLanguage: LanguageCode, 
+    language: LanguageCode, 
+    promptStyle: PromptStyleId, 
+    visualStyle: VisualStyleId,
+    frameLayout: FrameLayoutId,
+    voiceInstructions: string
+): Promise<ScenePlan[]> => {
     const schema = {
         type: Type.ARRAY,
         items: {
             type: Type.OBJECT,
             properties: {
                 scene_text: { type: Type.STRING },
-                illustration_prompt: { type: Type.STRING }
+                illustration_prompt: { type: Type.STRING },
+                character_action: { type: Type.STRING },
+                character_expression: { type: Type.STRING },
+                cinematography: { type: Type.STRING },
+                audio_cue: { type: Type.STRING },
             },
-            required: ["scene_text", "illustration_prompt"]
+            required: ["scene_text", "illustration_prompt", "character_action", "character_expression", "cinematography", "audio_cue"]
         }
     };
 
-    // 1. Split the input text into manageable chunks (e.g., by paragraphs).
     const chunks = inputText.split(/\n\s*\n/).filter(chunk => chunk.trim() !== '');
-    if (chunks.length === 0) {
-        throw new Error("Input script is empty or contains only whitespace.");
-    }
+    if (chunks.length === 0) throw new Error("Input script is empty or contains only whitespace.");
 
-    // 2. Create a processing function for a single chunk.
     const processChunk = async (chunk: string): Promise<ScenePlan[]> => {
         const sourceLanguageName = SUPPORTED_LANGUAGES.find(l => l.code === sourceLanguage)?.name || 'the source language';
         const targetLanguageName = SUPPORTED_LANGUAGES.find(l => l.code === language)?.name || 'the target language';
-        const styleDescription = PROMPT_STYLES.find(s => s.id === promptStyle)?.description || 'Visually compelling, cinematic, and often metaphorical.';
+        const styleDescription = PROMPT_STYLES.find(s => s.id === promptStyle)?.description || 'Visually compelling.';
         const needsTranslation = sourceLanguage !== language;
         const visualStyleName = visualStyle.replace(/_/g, ' ');
+        const layoutName = FRAME_LAYOUTS.find(l => l.id === frameLayout)?.name || 'standard framing';
 
         const instructions = [
-            needsTranslation && `**VERBATIM TRANSLATION**: First, translate the following ${sourceLanguageName} text chunk into ${targetLanguageName} (${language}). The translation MUST be verbatim (word-for-word) and 100% faithful to the source. DO NOT summarize, interpret, or change the meaning.`,
-            `**STRICT SEGMENTATION**: After any necessary translation, segment the full text into scenes. Each scene's text ('scene_text') MUST contain between 10 and 15 words. This is a strict, non-negotiable rule.`,
-            `**LOGICAL SPLITTING**: When segmenting, you MUST split the text at logical and grammatical breakpoints, such as after a comma or at the end of a clause. This ensures each scene sounds natural and complete on its own. Avoid awkward cuts.`,
-            `**ILLUSTRATION PROMPT GENERATION**: For EACH segmented scene, you MUST create a corresponding 'illustration_prompt'. The style of this prompt MUST be: **${styleDescription}**. The prompt must NOT describe the speaker and must be in English.`,
-            `**VISUAL STYLE ADHERENCE**: Critically, the 'illustration_prompt' MUST be described in a way that is fully compatible with the video's master visual style, which is **"${visualStyleName}"**. For example, if the master style is "Anime Japan", the illustration prompt should describe an anime-style scene, not a photorealistic one.`,
-            `**OUTPUT FORMAT**: The final output must be a single JSON array of objects, where each object represents a scene and contains 'scene_text' and 'illustration_prompt'.`
+            needsTranslation 
+                ? `**TRANSLATION & SEGMENTATION**: First, translate the text from ${sourceLanguageName} into ${targetLanguageName} (${language}). The translation must be verbatim. THEN, segment the translated text into scenes. Each 'scene_text' must be a natural, complete phrase, clause, or short sentence, strictly between 10 and 20 words.`
+                : `**SEGMENTATION**: Directly segment the original text into scenes. Each 'scene_text' must be a natural, complete phrase, clause, or short sentence, strictly between 10 and 20 words.`,
+            `**SCENE GENERATION**: For EACH segmented scene, you MUST generate a complete JSON object with the following fields:`,
+            `  - **scene_text**: The processed (translated, if applicable) and segmented dialogue for the scene.`,
+            `  - **illustration_prompt**: A creative, visual description for the illustrative part of the frame. This prompt MUST be in English. Adhere to this style: **${styleDescription}**. The visuals MUST be compatible with the master style: **'${visualStyleName}'**. Do not describe the main character/speaker.`,
+            `  - **character_action**: A concise description of the main character's physical action and pose. Example: 'stands centered, calm and confident, speaking directly to camera'.`,
+            `  - **character_expression**: A brief description of the character's facial expression, reflecting the emotion of the 'scene_text'. Example: 'a calm, neutral expression', 'an engaged, thoughtful expression'.`,
+            `  - **cinematography**: A professional cinematography directive, including framing, shot type, and camera movement. The framing MUST be consistent with the **'${layoutName}'** concept. Example: 'Left-third framing, medium shot, smooth dolly-in'.`,
+            `  - **audio_cue**: A brief description of the ambient sound, foley, or music for the scene. Example: 'Subtle office ambience, gentle heartbeat tone'.`,
+            `**CONSISTENCY**: The character's action and expression MUST align with the dialogue in 'scene_text' and the overall vocal delivery style: **'${voiceInstructions}'**.`,
+            `**OUTPUT FORMAT**: The final output must be a single JSON array of these scene objects.`
         ].filter(Boolean) as string[];
 
         const numberedInstructions = instructions.map((inst, index) => `${index + 1}. ${inst}`).join('\n');
 
         const prompt = `
-          You are an AI script processor for a video generation tool. Follow these rules with absolute precision for the provided text chunk:
+          You are an AI video director's assistant. Your task is to process a script chunk into a structured scene plan. Follow these rules with absolute precision:
           ${numberedInstructions}
 
           Text Chunk to process: "${chunk}"
@@ -214,27 +244,22 @@ const generateScenePlans = async (apiKeys: string[], inputText: string, sourceLa
         try {
             const response = await generateWithApiKeyRotation(apiKeys, generationFunc);
             const result = JSON.parse(response.text);
-
             if (!Array.isArray(result)) {
                 console.warn("AI did not return a valid array for chunk:", chunk, "Received:", result);
-                return []; // Return empty array for failed chunks to avoid breaking the whole process
+                return [];
             }
             return result;
         } catch (error) {
             console.error(`Failed to process chunk: "${chunk.substring(0, 50)}..."`, error);
-            // Decide if you want to throw or return empty. Returning empty makes it more resilient.
             return [];
         }
     };
 
-    // 3. Process all chunks in parallel.
     const allScenePlanArrays = await Promise.all(chunks.map(chunk => processChunk(chunk)));
-    
-    // 4. Flatten the array of arrays into a single array.
     const finalScenePlans = allScenePlanArrays.flat();
 
     if (finalScenePlans.length === 0) {
-        throw new Error("AI failed to generate any valid scene plans from the provided script. This might be due to an API key issue or an invalid script format.");
+        throw new Error("AI failed to generate any valid scene plans from the script. Check API keys and script format.");
     }
 
     return finalScenePlans;
@@ -248,13 +273,14 @@ export const convertScript = async (
     characterImage: CharacterImage | null,
     inputText: string,
     voiceInstructions: string,
+    acousticEnvironment: string,
     aspectRatio: '16:9' | '9:16',
     sourceLanguage: LanguageCode,
     language: LanguageCode,
     speaker: VeoSpeakerId,
     visualStyle: VisualStyleId,
     promptStyle: PromptStyleId,
-    frameLayout: FrameLayoutId
+    frameLayoutId: FrameLayoutId
 ): Promise<{ setupJson: string; scenesJsonl: string; stats: Stats }> => {
     if (!apiKeysString.trim()) throw new Error("Please provide at least one API Key.");
     if (!characterDescription.trim() || !backgroundDescription.trim() || !inputText.trim()) {
@@ -265,7 +291,7 @@ export const convertScript = async (
     
     const [setupData, scenePlans] = await Promise.all([
         generateSetupJson(apiKeys, characterDescription, backgroundDescription, visualStyle, characterImage),
-        generateScenePlans(apiKeys, inputText, sourceLanguage, language, promptStyle, visualStyle)
+        generateScenePlans(apiKeys, inputText, sourceLanguage, language, promptStyle, visualStyle, frameLayoutId, voiceInstructions)
     ]);
 
     const character = setupData.character_lock.CHAR_1;
@@ -277,63 +303,61 @@ export const convertScript = async (
     let totalWords = 0;
     let totalDuration = 0;
 
-    const selectedLayout = FRAME_LAYOUTS.find(l => l.id === frameLayout);
-    if (!selectedLayout) throw new Error("Invalid frame layout selected.");
-
-    const sceneObjects = scenePlans.map((plan, index): Scene => {
+    const scenePrompts = scenePlans.map((plan, index) => {
         const wordCount = countWords(plan.scene_text);
-        const calculatedDuration = wordCount / 2.5;
-        const duration = Math.round(Math.max(3, Math.min(8, calculatedDuration)) * 10) / 10;
-        
+        const duration = Math.round(Math.max(3, Math.min(8, wordCount / 2.5)) * 10) / 10;
         totalWords += wordCount;
         totalDuration += duration;
         
-        const sceneIndex = index;
-        const poseIndex = sceneIndex % POSES.length;
-        const actionIndex = sceneIndex % ACTION_FLOWS.length;
-        
-        const pose = POSES[poseIndex];
-        const actionFlow = ACTION_FLOWS[actionIndex];
-        
-        const layoutPrompt = aspectRatio === '16:9' ? selectedLayout.layout_16_9 : selectedLayout.layout_9_16;
-        const consistencyBlock = CHARACTER_CONSISTENCY_PROMPT_BLOCK(character.name || "CHAR_1");
-        const finalPrompt = `${consistencyBlock}\n🎬 **SCENE DESCRIPTION**:\n${layoutPrompt} ${plan.illustration_prompt}`;
+        const langName = SUPPORTED_LANGUAGES.find(l => l.code === language)?.name.split(' ')[0] || 'English';
+        const speakerName = VEO_SPEAKERS.find(s => s.id === speaker)?.name.split(' ')[0] || speaker;
 
-        return {
-            scene_id: String(sceneIndex + 1),
-            duration_sec: duration,
-            visual_style: setupData.visual_style,
-            negative_prompt: setupData.negative_prompt,
-            character_lock: {
-                "CHAR_1": {
-                    ...character,
-                    ...pose,
-                    action_flow: actionFlow
-                }
-            },
-            background_lock: {
-                "BACKGROUND_1": background
-            },
-            prompt: finalPrompt,
-            foley_and_ambience: FOLEY_BASE,
-            dialogue: [{
-                speaker: speaker,
-                language: language,
-                line: plan.scene_text,
-                delivery: `${pose.expression}. ${voiceInstructions}`
-            }],
-            lip_sync_director_note: LIP_SYNC_NOTE_TEMPLATE("CHAR_1", duration)
-        };
+        const charSummary = `${character.name} (${character.age}, ${character.hair}, ${character.outfit_top})`;
+
+        // 1. Start with the critical character consistency block
+        const consistencyBlock = CHARACTER_CONSISTENCY_PROMPT_BLOCK(character.name);
+        
+        // 2. Get the directorial framing instruction from the selected layout
+        // FIX: Added a fallback to the first layout to prevent type errors and ensure a valid layout is always found.
+        const frameLayout = FRAME_LAYOUTS.find(l => l.id === frameLayoutId) || FRAME_LAYOUTS[0];
+        const layoutInstruction = aspectRatio === '16:9' ? frameLayout.layout_16_9 : frameLayout.layout_9_16;
+        
+        // 3. Inject the dynamic illustration prompt into the layout instruction
+        const fullVisualDescription = layoutInstruction + " " + plan.illustration_prompt;
+
+        // 4. Assemble the final prompt with clear sections
+        const scenePromptLines = [
+            consistencyBlock,
+            `🎬 **SCENE DESCRIPTION**:`,
+            fullVisualDescription,
+            `---`,
+            `🗣️ **DIALOGUE & PERFORMANCE**`,
+            `**Line**: "${plan.scene_text}"`,
+            `**Speaker**: ${speakerName} (${langName})`,
+            `**Character Action**: ${plan.character_action}`,
+            `**Delivery**: ${plan.character_expression}. ${voiceInstructions}`,
+            `---`,
+            `🎥 **TECHNICALS**`,
+            `**Scene ID**: Scene_${String(index + 1).padStart(2, '0')}`,
+            `**Style**: ${setupData.visual_style.replace(/_/g, ' ')}`,
+            `**Cinematography**: ${plan.cinematography}`,
+            `**Audio**: ${plan.audio_cue}`,
+            `**Acoustics**: ${acousticEnvironment}`,
+            `**Negative Prompts**: no subtitle, no overlay, no text over.`
+        ];
+
+        return scenePromptLines.join('\n');
     });
 
+
     const stats: Stats = {
-        sceneCount: sceneObjects.length,
+        sceneCount: scenePlans.length,
         totalDuration: Math.round(totalDuration),
         totalWords: totalWords
     };
 
     const setupJson = JSON.stringify(setupData, null, 2);
-    const scenesJsonl = sceneObjects.map(obj => JSON.stringify(obj)).join('\n');
+    const scenesJsonl = scenePrompts.map(prompt => JSON.stringify({ prompt, status: 'pending' })).join('\n');
 
     return { setupJson, scenesJsonl, stats };
 };

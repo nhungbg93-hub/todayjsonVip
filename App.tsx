@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Stats, LanguageCode, VeoSpeakerId, VisualStyleId, PromptStyleId, FrameLayoutId } from './types';
 import { SCENARIO_TEMPLATES, SUPPORTED_LANGUAGES, VEO_SPEAKERS, VISUAL_STYLES, PROMPT_STYLES, FRAME_LAYOUTS } from './constants';
@@ -29,6 +30,7 @@ const getInitialState = () => {
                 characterImage: parsedState.characterImage ?? null,
                 inputText: parsedState.inputText ?? defaultTemplate.script,
                 voiceInstructions: parsedState.voiceInstructions ?? defaultTemplate.voice,
+                acousticEnvironment: parsedState.acousticEnvironment ?? defaultTemplate.acoustic,
                 aspectRatio: parsedState.aspectRatio ?? '16:9',
                 sourceLanguage: parsedState.sourceLanguage ?? 'en-US',
                 language: parsedState.language ?? 'en-US',
@@ -50,6 +52,7 @@ const getInitialState = () => {
         characterImage: null as CharacterImage | null,
         inputText: defaultTemplate.script,
         voiceInstructions: defaultTemplate.voice,
+        acousticEnvironment: defaultTemplate.acoustic,
         aspectRatio: '16:9' as '16:9' | '9:16',
         sourceLanguage: 'en-US' as LanguageCode,
         language: 'en-US' as LanguageCode,
@@ -73,6 +76,7 @@ const App: React.FC = () => {
     const [characterImage, setCharacterImage] = useState<CharacterImage | null>(initialState.characterImage);
     const [inputText, setInputText] = useState(initialState.inputText);
     const [voiceInstructions, setVoiceInstructions] = useState(initialState.voiceInstructions);
+    const [acousticEnvironment, setAcousticEnvironment] = useState(initialState.acousticEnvironment);
     const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>(initialState.aspectRatio);
     const [sourceLanguage, setSourceLanguage] = useState<LanguageCode>(initialState.sourceLanguage);
     const [language, setLanguage] = useState<LanguageCode>(initialState.language);
@@ -97,6 +101,7 @@ const App: React.FC = () => {
             characterImage,
             inputText,
             voiceInstructions,
+            acousticEnvironment,
             aspectRatio,
             sourceLanguage,
             language,
@@ -108,7 +113,7 @@ const App: React.FC = () => {
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
     }, [
         apiKeys, selectedTemplate, characterDescription, backgroundDescription,
-        characterImage, inputText, voiceInstructions, aspectRatio, sourceLanguage, language,
+        characterImage, inputText, voiceInstructions, acousticEnvironment, aspectRatio, sourceLanguage, language,
         speaker, visualStyle, promptStyle, frameLayout
     ]);
 
@@ -119,6 +124,7 @@ const App: React.FC = () => {
             setCharacterDescription(template.character);
             setBackgroundDescription(template.background);
             setVoiceInstructions(template.voice);
+            setAcousticEnvironment(template.acoustic);
             setInputText(template.script);
             setCharacterImage(null); // Reset image when template changes
         }
@@ -165,6 +171,7 @@ const App: React.FC = () => {
                 characterImage,
                 inputText,
                 voiceInstructions,
+                acousticEnvironment,
                 aspectRatio,
                 sourceLanguage,
                 language,
@@ -179,11 +186,15 @@ const App: React.FC = () => {
             setNotification({ message: t('notifySuccess'), type: 'success' });
         } catch (error: any) {
             console.error("Generation failed:", error);
-            setNotification({ message: error.message || t('notifyErrorUnknown'), type: 'error' });
+            let message = error.message || t('notifyErrorUnknown');
+            if (error.message && /exceeded quota/i.test(error.message)) {
+                message = t('notifyErrorQuota');
+            }
+            setNotification({ message, type: 'error' });
         } finally {
             setIsLoading(false);
         }
-    }, [apiKeys, characterDescription, backgroundDescription, characterImage, inputText, voiceInstructions, aspectRatio, sourceLanguage, language, speaker, visualStyle, promptStyle, frameLayout, t]);
+    }, [apiKeys, characterDescription, backgroundDescription, characterImage, inputText, voiceInstructions, acousticEnvironment, aspectRatio, sourceLanguage, language, speaker, visualStyle, promptStyle, frameLayout, t]);
 
     const FilmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
@@ -204,10 +215,85 @@ const App: React.FC = () => {
                 <p className="mt-2 text-lg text-gray-400">{t('headerSubtitle')}</p>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Inputs */}
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                    <Panel title={t('panelConfig')}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8">
+                {/* Left Column: Creative Inputs */}
+                <div className="flex flex-col gap-6">
+                    <Panel title={t('panelContentInput')}>
+                      <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-400 mb-2">{t('contentCharacterImage')}</label>
+                          {characterImage ? (
+                              <div className="relative group">
+                                  <img src={`data:${characterImage.mimeType};base64,${characterImage.data}`} alt="Character preview" className="rounded-md w-full object-cover" />
+                                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                          onClick={() => setCharacterImage(null)}
+                                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
+                                      >
+                                          {t('removeImage')}
+                                      </button>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md">
+                                  <div className="space-y-1 text-center">
+                                      <svg className="mx-auto h-12 w-12 text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                      <div className="flex text-sm text-gray-400">
+                                          <label htmlFor="file-upload" className="relative cursor-pointer bg-gray-800 rounded-md font-medium text-cyan-400 hover:text-cyan-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-900 focus-within:ring-cyan-500">
+                                              <span>{t('uploadFile')}</span>
+                                              <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/png, image/jpeg, image/webp" onChange={handleImageUpload} />
+                                          </label>
+                                          <p className="pl-1">{t('dragAndDrop')}</p>
+                                      </div>
+                                      <p className="text-xs text-gray-500">{t('imageFileType')}</p>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                      <TextAreaInput
+                          label={t('contentCharacter')}
+                          value={characterDescription}
+                          onChange={(e) => setCharacterDescription(e.target.value)}
+                          placeholder={t('contentCharacterPlaceholder')}
+                          rows={6}
+                      />
+                      <TextAreaInput
+                          label={t('contentBackground')}
+                          value={backgroundDescription}
+                          onChange={(e) => setBackgroundDescription(e.target.value)}
+                          placeholder={t('contentBackgroundPlaceholder')}
+                          rows={4}
+                      />
+                       <TextAreaInput
+                          label={t('contentVoice')}
+                          value={voiceInstructions}
+                          onChange={(e) => setVoiceInstructions(e.target.value)}
+                          placeholder={t('contentVoicePlaceholder')}
+                          rows={4}
+                      />
+                      <TextAreaInput
+                          label={t('contentAcoustic')}
+                          value={acousticEnvironment}
+                          onChange={(e) => setAcousticEnvironment(e.target.value)}
+                          placeholder={t('contentAcousticPlaceholder')}
+                          rows={4}
+                      />
+                    </Panel>
+                    <Panel title={t('panelScript')} className="flex-grow">
+                        <TextAreaInput
+                            label={t('scriptLabel')}
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            placeholder={t('scriptPlaceholder')}
+                            rows={20}
+                        />
+                    </Panel>
+                </div>
+
+                {/* Right Column: Configuration & Outputs */}
+                <div className="flex flex-col gap-6">
+                   <Panel title={t('panelConfig')}>
                       <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-400 mb-2">{t('configInputTemplate')}</label>
                           <select
@@ -321,74 +407,6 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     </Panel>
-                    <Panel title={t('panelContentInput')}>
-                      <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-400 mb-2">{t('contentCharacterImage')}</label>
-                          {characterImage ? (
-                              <div className="relative group">
-                                  <img src={`data:${characterImage.mimeType};base64,${characterImage.data}`} alt="Character preview" className="rounded-md w-full object-cover" />
-                                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                          onClick={() => setCharacterImage(null)}
-                                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
-                                      >
-                                          {t('removeImage')}
-                                      </button>
-                                  </div>
-                              </div>
-                          ) : (
-                              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md">
-                                  <div className="space-y-1 text-center">
-                                      <svg className="mx-auto h-12 w-12 text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
-                                      <div className="flex text-sm text-gray-400">
-                                          <label htmlFor="file-upload" className="relative cursor-pointer bg-gray-800 rounded-md font-medium text-cyan-400 hover:text-cyan-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-900 focus-within:ring-cyan-500">
-                                              <span>{t('uploadFile')}</span>
-                                              <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/png, image/jpeg, image/webp" onChange={handleImageUpload} />
-                                          </label>
-                                          <p className="pl-1">{t('dragAndDrop')}</p>
-                                      </div>
-                                      <p className="text-xs text-gray-500">{t('imageFileType')}</p>
-                                  </div>
-                              </div>
-                          )}
-                      </div>
-                      <TextAreaInput
-                          label={t('contentCharacter')}
-                          value={characterDescription}
-                          onChange={(e) => setCharacterDescription(e.target.value)}
-                          placeholder={t('contentCharacterPlaceholder')}
-                          rows={6}
-                      />
-                      <TextAreaInput
-                          label={t('contentBackground')}
-                          value={backgroundDescription}
-                          onChange={(e) => setBackgroundDescription(e.target.value)}
-                          placeholder={t('contentBackgroundPlaceholder')}
-                          rows={4}
-                      />
-                       <TextAreaInput
-                          label={t('contentVoice')}
-                          value={voiceInstructions}
-                          onChange={(e) => setVoiceInstructions(e.target.value)}
-                          placeholder={t('contentVoicePlaceholder')}
-                          rows={4}
-                      />
-                    </Panel>
-                </div>
-
-                {/* Middle Column: Script & Action */}
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                   <Panel title={t('panelScript')} className="flex-grow">
-                        <TextAreaInput
-                            label={t('scriptLabel')}
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            placeholder={t('scriptPlaceholder')}
-                            rows={20}
-                        />
-                    </Panel>
                     <button
                         onClick={handleGenerate}
                         disabled={isLoading}
@@ -413,30 +431,42 @@ const App: React.FC = () => {
                             </div>
                         </Panel>
                     )}
-                </div>
-
-                {/* Right Column: Outputs */}
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                    <Panel title={t('panelSetupJson')} className="flex-grow" copyContent={setupJson}>
-                       <TextAreaInput
-                          label={t('outputSetupJsonLabel')}
-                          value={setupJson}
-                          onChange={() => {}}
-                          placeholder={t('outputSetupJsonPlaceholder')}
-                          rows={10}
-                          isReadOnly
-                       />
-                    </Panel>
-                    <Panel title={t('panelScenesJsonl')} className="flex-grow" copyContent={scenesJsonl}>
-                        <TextAreaInput
-                            label={t('outputScenesJsonlLabel')}
-                            value={scenesJsonl}
-                            onChange={() => {}}
-                            placeholder={t('outputScenesJsonlPlaceholder')}
-                            rows={15}
-                            isReadOnly
-                        />
-                    </Panel>
+                    {setupJson && (
+                        <Panel
+                          title={t('panelSetupJson')}
+                          className="flex-grow"
+                          copyContent={setupJson}
+                          downloadContent={setupJson}
+                          downloadFilename="setup.json"
+                        >
+                           <TextAreaInput
+                              label={t('outputSetupJsonLabel')}
+                              value={setupJson}
+                              onChange={() => {}}
+                              placeholder={t('outputSetupJsonPlaceholder')}
+                              rows={10}
+                              isReadOnly
+                           />
+                        </Panel>
+                    )}
+                    {scenesJsonl && (
+                        <Panel
+                          title={t('panelScenesJsonl')}
+                          className="flex-grow"
+                          copyContent={scenesJsonl}
+                          downloadContent={scenesJsonl}
+                          downloadFilename="scenes.jsonl"
+                        >
+                            <TextAreaInput
+                                label={t('outputScenesJsonlLabel')}
+                                value={scenesJsonl}
+                                onChange={() => {}}
+                                placeholder={t('outputScenesJsonlPlaceholder')}
+                                rows={15}
+                                isReadOnly
+                            />
+                        </Panel>
+                    )}
                 </div>
             </div>
         </div>

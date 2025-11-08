@@ -98,4 +98,8 @@ export interface Stats {
 export interface ScenePlan {
     scene_text: string;
     illustration_prompt: string;
+    character_action: string;
+    character_expression: string;
+    cinematography: string;
+    audio_cue: string;
 }

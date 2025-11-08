@@ -39,6 +39,8 @@ export const translations = {
     contentBackgroundPlaceholder: "Describe the background scene...",
     contentVoice: "Voice-over Delivery Instructions",
     contentVoicePlaceholder: "Describe the vocal tone, pace, and emphasis...",
+    contentAcoustic: "Acoustic Environment",
+    contentAcousticPlaceholder: "Describe the consistent sound environment for all scenes (microphone, room, ambient hum)...",
     contentCharacterImage: "Character Reference Image (Primary Source)",
     uploadFile: "Upload a file",
     dragAndDrop: "or drag and drop",
@@ -67,10 +69,14 @@ export const translations = {
     // Notifications
     notifySuccess: "Generation successful!",
     notifyErrorUnknown: "An unknown error occurred.",
+    notifyErrorQuota: "All API keys have exceeded their usage quota. Please wait a moment and try again, or add more keys.",
     
     // Copy Button
     copyTooltip: "Copy to clipboard",
     copiedTooltip: "Copied!",
+
+    // Download Button
+    downloadTooltip: "Download file",
 
     // Language Names (for dropdown)
     'en-US': 'English (US)',
@@ -174,6 +180,8 @@ export const translations = {
     contentBackgroundPlaceholder: "Mô tả bối cảnh, khung cảnh...",
     contentVoice: "Hướng dẫn giọng đọc",
     contentVoicePlaceholder: "Mô tả tông giọng, nhịp độ, và điểm nhấn...",
+    contentAcoustic: "Môi trường Âm thanh",
+    contentAcousticPlaceholder: "Mô tả môi trường âm thanh nhất quán cho tất cả các cảnh (micro, phòng, tiếng ồn nền)...",
     contentCharacterImage: "Ảnh tham chiếu nhân vật (Nguồn chính)",
     uploadFile: "Tải tệp lên",
     dragAndDrop: "hoặc kéo và thả",
@@ -202,10 +210,14 @@ export const translations = {
     // Notifications
     notifySuccess: "Tạo thành công!",
     notifyErrorUnknown: "Đã xảy ra lỗi không xác định.",
+    notifyErrorQuota: "Tất cả các API key đã vượt quá hạn ngạch sử dụng. Vui lòng đợi một lát và thử lại, hoặc thêm các key khác.",
     
     // Copy Button
     copyTooltip: "Sao chép vào clipboard",
     copiedTooltip: "Đã sao chép!",
+
+    // Download Button
+    downloadTooltip: "Tải tệp xuống",
 
     // Language Names (for dropdown)
     'en-US': 'Tiếng Anh (Mỹ)',

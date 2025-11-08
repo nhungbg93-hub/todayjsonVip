@@ -282,6 +282,8 @@ export const LIP_SYNC_NOTE_TEMPLATE = (characterId: string, duration: number) =>
 
 export const DEFAULT_VOICE_INSTRUCTIONS = "Deliver with a clear, professional, and empathetic tone. Maintain a moderate volume and a steady pace. Emphasize key medical terms and reassuring phrases.";
 
+export const DEFAULT_ACOUSTIC_INSTRUCTIONS = "Studio-quality recording with a high-end condenser microphone. Consistent microphone distance and EQ. A subtle, constant low-frequency ambient hum is present. The acoustic profile is a professionally treated, sound-dampened room with no reverb or echo.";
+
 export const SCENARIO_TEMPLATES = [
     {
         id: 'doctor',
@@ -309,6 +311,7 @@ Top: Pristine white lab coat over royal blue medical scrubs | Bottom: Royal blue
 ⚠️ CRITICAL: All details MUST BE IDENTICAL in ALL scenes.`,
         background: 'A professional, clean, and modern medical office. The background includes a bookshelf with medical texts, a diploma on the wall, and soft, natural lighting from a window. The overall feel is warm, authoritative, and welcoming.',
         voice: 'Deliver with a clear, professional, and empathetic tone. Maintain a moderate volume and a steady pace. Emphasize key medical terms and reassuring phrases.',
+        acoustic: DEFAULT_ACOUSTIC_INSTRUCTIONS,
         script: 'Ninety-four percent of people over sixty exercise incorrectly, accelerating joint damage. I\'m Dr. Strong, and for thirty years, I\'ve helped thousands regain independence. Most advice you followed for years was wrong. The latest science reveals the truth. We will count down five movements, from helpful to life-changing. Number one has restored abilities thousands thought were lost forever.'
     },
     {
@@ -337,6 +340,7 @@ Top: Light blue button-down shirt with sleeves rolled up to the elbow | Bottom: 
 ⚠️ CRITICAL: All details MUST BE IDENTICAL in ALL scenes.`,
         background: 'A bright and organized classroom. In the background, there is a large whiteboard with some educational diagrams, a colorful bookshelf filled with books, and a window letting in natural light. A small plant sits on the corner of his desk.',
         voice: 'Deliver with an enthusiastic, clear, and patient tone. Speak at a slightly slower pace to ensure comprehension. Sound encouraging and positive throughout the delivery.',
+        acoustic: DEFAULT_ACOUSTIC_INSTRUCTIONS,
         script: 'Hello class, and welcome! Today, we\'re going to explore the fascinating world of photosynthesis. It might sound complex, but I promise, by the end of this lesson, you\'ll see how plants use sunlight to create their own food. Let\'s start with the basics. What are the three key ingredients a plant needs?'
     },
     {
@@ -365,6 +369,7 @@ Top: A stylish, well-fitted dark navy blue blazer over a simple white silk blous
 ⚠️ CRITICAL: All details MUST BE IDENTICAL in ALL scenes.`,
         background: 'A minimalist, high-tech studio with a clean aesthetic. The background is slightly out of focus, featuring a large screen displaying abstract data visualizations and subtle, dynamic LED lighting along the wall panels. The overall look is modern, sleek, and professional.',
         voice: 'Deliver with a confident, articulate, and crisp tone. The pace should be deliberate and well-measured, conveying expertise. Emphasize key data points and technical terms with precision and clarity.',
+        acoustic: DEFAULT_ACOUSTIC_INSTRUCTIONS,
         script: 'The latest market data reveals a significant shift in consumer behavior towards decentralized platforms. In Q3, we saw a 40% increase in user adoption for Web3 applications, a trend that is disrupting traditional business models. This isn\'t just a fad; it\'s a fundamental change in how we interact with the digital world. The key takeaway for investors is this: adapt or be left behind.'
     }
 ];
