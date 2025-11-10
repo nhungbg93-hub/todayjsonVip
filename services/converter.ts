@@ -311,8 +311,7 @@ export const convertScript = async (
         
         const langName = SUPPORTED_LANGUAGES.find(l => l.code === language)?.name.split(' ')[0] || 'English';
         const speakerName = VEO_SPEAKERS.find(s => s.id === speaker)?.name.split(' ')[0] || speaker;
-
-        const charSummary = `${character.name} (${character.age}, ${character.hair}, ${character.outfit_top})`;
+        const sceneId = `Scene_${String(index + 1).padStart(2, '0')}`;
 
         // 1. Start with the critical character consistency block
         const consistencyBlock = CHARACTER_CONSISTENCY_PROMPT_BLOCK(character.name);
@@ -327,6 +326,7 @@ export const convertScript = async (
 
         // 4. Assemble the final prompt with clear sections
         const scenePromptLines = [
+            sceneId,
             consistencyBlock,
             `🎬 **SCENE DESCRIPTION**:`,
             fullVisualDescription,
@@ -338,10 +338,10 @@ export const convertScript = async (
             `**Delivery**: ${plan.character_expression}. ${voiceInstructions}`,
             `---`,
             `🎥 **TECHNICALS**`,
-            `**Scene ID**: Scene_${String(index + 1).padStart(2, '0')}`,
+            `**Scene ID**: ${sceneId}`,
             `**Style**: ${setupData.visual_style.replace(/_/g, ' ')}`,
             `**Cinematography**: ${plan.cinematography}`,
-            `**Audio**: ${plan.audio_cue}`,
+            `**Audio**: ${plan.audio_cue}, no background music`,
             `**Acoustics**: ${acousticEnvironment}`,
             `**Negative Prompts**: no subtitle, no overlay, no text over.`
         ];
